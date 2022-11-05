@@ -1,4 +1,7 @@
 
+using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.AspNetCore.Mvc.Filters;
+
 public class SampleRequirement : AuthorizationHandler<SampleRequirement>, IAuthorizationRequirement
 {
     public readonly static string PolicyName = "SamplePolicy";

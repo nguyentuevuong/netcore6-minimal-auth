@@ -7,9 +7,18 @@ builder.Services
     .AddAuthorization(options =>
     {
         options.AddPolicy(SampleRequirement.PolicyName, policy =>
-            policy.Requirements.Add(new SampleRequirement()));
+        {
+            policy.AddRequirements(new SampleRequirement());
+        });
 
-        options.AddPolicy("AdminOrMod", policy => policy.RequireRole("admin", "moderator"));
+        options.AddPolicy("AdminOrMod", policy =>
+        {
+            policy.RequireRole("admin", "moderator");
+        });
+
+        options.AddPolicy("ABC", policy => {
+            policy.RequireClaim("ABC");
+        });
     });
 
 builder.Services
@@ -33,7 +42,7 @@ var app = builder.Build();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/", [AllowAnonymous]() => "This a demo for JWT Authentication using Minimalist Web API");
+app.MapGet("/", [AllowAnonymous] () => "This a demo for JWT Authentication using Minimalist Web API");
 
 app.MapGet("/login", [AllowAnonymous] async (HttpContext http, ITokenService tokenService, IUserRepositoryService userRepositoryService) =>
 {
@@ -59,37 +68,9 @@ app.MapGet("/login", [AllowAnonymous] async (HttpContext http, ITokenService tok
     return;
 });
 
-app.MapGet("/do-action", [Authorize]() => "Action Succeeded");
-app.MapGet("/do-action-by-roles", [Authorize(Roles = "admin")]() => "Action Succeeded");
-app.MapGet("/do-action-by-policy", [Authorize(Policy = "SamplePolicy")]() => "Action Succeeded");
-app.MapGet("/do-action-by-role-group", [Authorize(Policy = "AdminOrMod")]() => "Action Succeeded");
+app.MapGet("/do-action", [Authorize] () => "Action Succeeded");
+app.MapGet("/do-action-by-roles", [Authorize(Roles = "admin")] () => "Action Succeeded");
+app.MapGet("/do-action-by-policy", [Authorize(Policy = "SamplePolicy")] () => "Action Succeeded");
+app.MapGet("/do-action-by-role-group", [Authorize(Policy = "AdminOrMod")] () => "Action Succeeded");
 
 await app.RunAsync();
-
-public interface ITokenService
-{
-    string BuildToken(string key, string issuer, UserDto user);
-}
-
-public class TokenService : ITokenService
-{
-    private TimeSpan ExpiryDuration = new TimeSpan(0, 30, 0);
-    public string BuildToken(string key, string issuer, UserDto user)
-    {
-        var claims = new[]
-        {
-            new Claim(ClaimTypes.Name, user.UserName),
-            new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
-            // new Claim(ClaimTypes.Role, "admin"),
-            new Claim(ClaimTypes.Role, "guest"),
-            new Claim(ClaimTypes.Role, "moderator"),
-            new Claim(ClaimTypes.Role, "leader"),
-        };
-
-        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
-        var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256Signature);
-        var tokenDescriptor = new JwtSecurityToken(issuer, issuer, claims, expires: DateTime.Now.Add(ExpiryDuration), signingCredentials: credentials);
-
-        return new JwtSecurityTokenHandler().WriteToken(tokenDescriptor);
-    }
-}
